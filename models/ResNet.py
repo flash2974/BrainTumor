@@ -1,66 +1,88 @@
 from keras.models import Model, Sequential
-from keras.layers import Add, BatchNormalization, Conv2D, MaxPooling2D, GlobalAveragePooling2D, Dense, Activation, Layer, RandomFlip, RandomRotation, RandomZoom
+from keras.layers import (
+    Add,
+    BatchNormalization,
+    Conv2D,
+    MaxPooling2D,
+    GlobalAveragePooling2D,
+    Dense,
+    Activation,
+    Layer,
+    RandomFlip,
+    RandomRotation,
+    RandomZoom,
+)
 
 __all__ = ["ResNet"]
 
-class ResNetBlock(Layer) :
-    def __init__(self, filters, strides, apply_shortcut = False) : 
+
+class ResNetBlock(Layer):
+    def __init__(self, filters, strides, apply_shortcut=False):
         super().__init__()
-        padding = 'same'
+        padding = "same"
         # Activation
-        self.relu = Activation('relu')
-        
+        self.relu = Activation("relu")
+
         # First Conv
-        self.conv1 = Conv2D(filters = filters, kernel_size=1, strides = 1, padding=padding)
+        self.conv1 = Conv2D(filters=filters, kernel_size=1, strides=1, padding=padding)
         self.bn1 = BatchNormalization()
-        
+
         # Second Conv
-        self.conv2 = Conv2D(filters = filters, kernel_size=3, strides = strides, padding=padding)
+        self.conv2 = Conv2D(
+            filters=filters, kernel_size=3, strides=strides, padding=padding
+        )
         self.bn2 = BatchNormalization()
-        
+
         # Third Conv
-        self.conv3 = Conv2D(filters = filters * 4, kernel_size=1, strides = 1, padding=padding)
+        self.conv3 = Conv2D(
+            filters=filters * 4, kernel_size=1, strides=1, padding=padding
+        )
         self.bn3 = BatchNormalization()
-        
-        # Le raccourci (shortcut) si les dimensions changent. 
+
+        # Le raccourci (shortcut) si les dimensions changent.
         self.shortcut = None
         if apply_shortcut or strides != 1:
-            self.shortcut = Sequential([
-                Conv2D(filters * 4, kernel_size=1, strides=strides, padding=padding),
-                BatchNormalization()
-            ])
-            
-        self.add = Add() # Additionneur GPU
-    
-    
+            self.shortcut = Sequential(
+                [
+                    Conv2D(
+                        filters * 4, kernel_size=1, strides=strides, padding=padding
+                    ),
+                    BatchNormalization(),
+                ]
+            )
+
+        self.add = Add()  # Additionneur GPU
+
     def call(self, inputs):
         x = self.conv1(inputs)
         x = self.bn1(x)
         x = self.relu(x)
-        
+
         x = self.conv2(x)
         x = self.bn2(x)
         x = self.relu(x)
-        
+
         x = self.conv3(x)
         x = self.relu(x)
-        
+
         # Gestion du raccourci
         res = inputs
         if self.shortcut is not None:
             res = self.shortcut(inputs)
-        
-        if res.shape != x.shape :
-            raise Exception(f"Size mismatch between res : {res.shape} and x : {x.shape}")
-        
+
+        if res.shape != x.shape:
+            raise Exception(
+                f"Size mismatch between res : {res.shape} and x : {x.shape}"
+            )
+
         # Addition et activation finale
         x = self.add([res, x])
         x = self.relu(x)
         return x
 
 
-class ResNet(Model) : 
-    def __init__(self, num_classes : int) :
+class ResNet(Model):
+    def __init__(self, num_classes: int):
         """Modèle de ResNet-50
         \\
         Config :
@@ -74,54 +96,60 @@ class ResNet(Model) :
         """
         super().__init__()
         self.name = "ResNet"
-        padding = 'same'
-        
+        padding = "same"
+
         # Couche qui permet d'augmenter artificiellement la taille du dataset
-        self.data_augmentation = Sequential([
-            RandomFlip("horizontal"),
-            RandomRotation(0.1), # Tourne de +/- 10% max
-            RandomZoom(0.1),
-        ])
-        
-        self.initial_conv = Conv2D(filters=64, kernel_size=7, strides=2, padding=padding) # dimension des images / 2 avec stride
+        self.data_augmentation = Sequential(
+            [
+                RandomFlip("horizontal"),
+                RandomRotation(0.1),  # Tourne de +/- 10% max
+                RandomZoom(0.1),
+            ]
+        )
+
+        self.initial_conv = Conv2D(
+            filters=64, kernel_size=7, strides=2, padding=padding
+        )  # dimension des images / 2 avec stride
         self.initial_bn = BatchNormalization()
-        self.initial_activ = Activation('relu')
-        self.mp1 = MaxPooling2D(pool_size=3, strides=2, padding=padding) # dimension des images / 4 avec stride
-        
+        self.initial_activ = Activation("relu")
+        self.mp1 = MaxPooling2D(
+            pool_size=3, strides=2, padding=padding
+        )  # dimension des images / 4 avec stride
+
         # 1er bloc, on doit adapter le shortcut la sortie de mp1 comporte 64 filtres, or le conv3 du ResNet block en sort 256.
         # Une erreur se produira si on ne transforme pas l'entrée initiale en 256 filtres
-        self.rs11 = ResNetBlock(filters = 64, strides = 1, apply_shortcut=True)
-        self.rs12 = ResNetBlock(filters = 64, strides = 1)
-        
-        self.rs21 = ResNetBlock(filters = 128, strides = 2)
-        self.rs22 = ResNetBlock(filters = 128, strides = 1)
-        
+        self.rs11 = ResNetBlock(filters=64, strides=1, apply_shortcut=True)
+        self.rs12 = ResNetBlock(filters=64, strides=1)
+
+        self.rs21 = ResNetBlock(filters=128, strides=2)
+        self.rs22 = ResNetBlock(filters=128, strides=1)
+
         self.gap = GlobalAveragePooling2D()
         self.out = Dense(num_classes, activation="softmax")
-        
+
     # Training : passé automatiquement quand on fait model.fit()
-    def call(self, x, training=False) : 
-        
+    def call(self, x, training=False):
+
         if training:
             x = self.data_augmentation(x)
-            
+
         x = self.initial_conv(x)
         x = self.initial_bn(x)
         x = self.initial_activ(x)
         x = self.mp1(x)
-        
+
         x = self.rs11(x)
         x = self.rs12(x)
-        
+
         x = self.rs21(x)
         x = self.rs22(x)
-        
+
         x = self.gap(x)
         x = self.out(x)
-        
+
         return x
-    
-    
+
+
 """
 Explications :
 

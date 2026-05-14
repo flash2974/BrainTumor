@@ -4,8 +4,9 @@ import tensorflow as tf
 
 __all__ = ["CNN"]
 
-class CNN(Model) : 
-    def __init__(self, num_classes : int) :
+
+class CNN(Model):
+    def __init__(self, num_classes: int):
         """CNN basique.
         \\
         Couches :
@@ -19,20 +20,21 @@ class CNN(Model) :
         Args:
             num_classes (int): Nombre de classes à prédire.
         """
-        super().__init__()  
+        super().__init__()
         self.name = "CNN"
-        self.seq = Sequential([
-            Conv2D(32, 4, activation='relu'),
-            MaxPooling2D(),
-            Conv2D(64, 4, activation='relu'),
-            MaxPooling2D(),
-            
-            GlobalAveragePooling2D(),
-            Dense(128, activation = 'relu'),
-            Dropout(0.3),
-            Dense(num_classes, activation = 'softmax')
-        ])
-        
+        self.seq = Sequential(
+            [
+                Conv2D(32, 4, activation="relu"),
+                MaxPooling2D(),
+                Conv2D(64, 4, activation="relu"),
+                MaxPooling2D(),
+                GlobalAveragePooling2D(),
+                Dense(128, activation="relu"),
+                Dropout(0.3),
+                Dense(num_classes, activation="softmax"),
+            ]
+        )
+
     # Appelée lors d'un model.predict()
-    def call(self, x : tf.Tensor) -> tf.Tensor: 
+    def call(self, x: tf.Tensor) -> tf.Tensor:
         return self.seq(x)

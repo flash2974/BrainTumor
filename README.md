@@ -12,3 +12,9 @@ I used two different datasets :
     - meningioma
     - no tumor
     - pituitary
+  
+
+> [!NOTE]  
+> See my [Jupyter file !!](main.ipynb)
+
+![alt text](image.png)
