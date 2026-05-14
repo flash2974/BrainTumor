@@ -3,7 +3,6 @@ from matplotlib import pyplot as plt
 import numpy as np
 from pathlib import Path
 
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 CWD = Path(".")
@@ -15,38 +14,12 @@ SIZE = 128
 
 def load_image(path):
     img = Image.open(path).convert("L")
-    # image non étirée (bandes nories)
+    # image non étirée (bandes noires)
     img_padded = ImageOps.pad(
         img, (SIZE, SIZE), method=Image.Resampling.LANCZOS, color=0
     )
 
     return np.array(img_padded)
-
-
-def load_dataset():
-    yes_images = np.array([load_image(path) for path in YES_PATH.iterdir()])
-    yes_labels = np.ones(yes_images.shape[0])
-
-    no_images = np.array([load_image(path) for path in NO_PATH.iterdir()])
-    no_labels = np.zeros(no_images.shape[0])
-
-    ds_images = np.concatenate((yes_images, no_images))
-    ds_labels = np.concatenate((yes_labels, no_labels))
-
-    idx = np.random.permutation(len(ds_images))
-
-    X = ds_images[idx].reshape((-1, SIZE * SIZE))
-    y = ds_labels[idx]
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y)
-
-    s = StandardScaler()
-    X_train = s.fit_transform(X_train)
-    X_test = s.transform(X_test)
-    X_train = X_train.reshape((-1, SIZE, SIZE, 1))
-    X_test = X_test.reshape((-1, SIZE, SIZE, 1))
-
-    return X_train, X_test, y_train, y_test
 
 
 def plot_image(arr):
